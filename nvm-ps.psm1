@@ -28,6 +28,17 @@
 
 Set-StrictMode -Version Latest
 
+# --- Bilingual (en-US / es-ES) per BCP 47 / Microsoft Language Portal ---
+# en-US: color, behavior, folder/file, customize — es-ES: color, comportamiento, carpeta/fichero, ordenador, personalizar
+$script:NvmPsCulture = if ($env:NVM_PS_LANG) { $env:NVM_PS_LANG } else { try { (Get-Culture).Name } catch { 'en-US' } }
+if ($env:LANG -like 'es*') { $script:NvmPsCulture = 'es-ES' }
+$script:NvmIsEsES = $script:NvmPsCulture -like 'es-*'
+$script:NvmMessages = @{
+    'SourceNotSupported' = if ($script:NvmIsEsES) { 'Instalar desde el código fuente (-s) no es compatible en Windows. Usa la instalación binaria (predeterminada). Consulta nvm-ps/README.es-ES.md#source-fallback (ordenador con Windows 11)' } else { 'Installing from source (-s) is not supported on Windows. Use binary install (default). See nvm-ps/README.md#source-fallback' }
+    'NvmNoSourceFallback' = if ($script:NvmIsEsES) { 'NVM_NO_SOURCE_FALLBACK=1 aborta si falla la descarga binaria (sin respaldo a código fuente)' } else { 'NVM_NO_SOURCE_FALLBACK=1 aborts on binary download failure (no source fallback)' }
+}
+function nvm_ps_t($key) { $script:NvmMessages[$key] }
+
 # ===========================
 # Section 1: Output & Utility
 # ===========================
