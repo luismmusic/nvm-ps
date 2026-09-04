@@ -19,9 +19,29 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+# --- Bilingual (en-US / es-ES) per BCP 47 / ISO 639-1 + ISO 3166-1, Microsoft Language Portal ---
+# Detects UI culture; respects $env:LANG and $env:NVM_PS_LANG override. Jargon: en-US (color, behavior, folder/file, customize) / es-ES (color, comportamiento, carpeta/fichero, ordenador, personalizar)
+$NvmPsCulture = if ($env:NVM_PS_LANG) { $env:NVM_PS_LANG } else { try { (Get-Culture).Name } catch { 'en-US' } }
+if ($env:LANG -like 'es*') { $NvmPsCulture = 'es-ES' }
+$IsEsES = $NvmPsCulture -like 'es-*'
+$Messages = @{
+    'Installing'      = if ($IsEsES) { '=> Instalando nvm-ps para Windows 11 + PowerShell 7+...' } else { '=> Installing nvm-ps for Windows 11 + PowerShell 7+...' }
+    'ForkCredits'     = if ($IsEsES) { '   Fork de nvm-sh/nvm por Luis Mendez — todos los créditos para los creadores de nvm-sh (Tim Caswell et al.)' } else { '   Fork of nvm-sh/nvm by Luis Mendez — all credits to nvm-sh creators (Tim Caswell et al.)' }
+    'NvmDir'          = if ($IsEsES) { '=> Directorio NVM_DIR:' } else { '=> NVM_DIR:' }
+    'CreatedDir'      = if ($IsEsES) { '=> Carpeta creada:' } else { '=> Created directory:' }
+    'Installed'       = if ($IsEsES) { '=> Instalado:' } else { '=> Installed:' }
+    'RemoteMode'      = if ($IsEsES) { '=> Modo remoto (irm|iex) — los ficheros se descargarán en el primer uso vía el asistente de nvm' } else { '=> Running in remote mode (irm|iex) — files will be fetched on first use via nvm helper' }
+    'InstalledDone'   = if ($IsEsES) { '=> ¡nvm-ps se ha instalado! (fork de nvm-sh)' } else { '=> nvm-ps has been installed! (fork of nvm-sh)' }
+    'AllCredits'      = if ($IsEsES) { '   Todos los créditos para los creadores de nvm-sh: Tim Caswell, Matthew Ranney, Jordan Harband (@ljharb) et al. — https://github.com/nvm-sh/nvm' } else { '   All credits to nvm-sh creators: Tim Caswell, Matthew Ranney, Jordan Harband (@ljharb) et al. — https://github.com/nvm-sh/nvm' }
+    'ForkBy'          = if ($IsEsES) { '   Fork por Luis Mendez — port por curiosidad, Windows 11 + PowerShell 7+ (ordenador)' } else { '   Fork by Luis Mendez — curiosity port, Windows 11 + PowerShell 7+' }
+    'ToStart'         = if ($IsEsES) { 'Para empezar a usar nvm-ps, puedes:' } else { 'To start using nvm-ps, either:' }
+    'Restart'         = if ($IsEsES) { '  1. Reinicia tu terminal de PowerShell, o' } else { '  1. Restart your PowerShell terminal, or' }
+}
+function nvm_ps_msg($key) { $Messages[$key] }
+
 Write-Host ''
-Write-Host '=> Installing nvm-ps for Windows 11 + PowerShell 7+...' -ForegroundColor Green
-Write-Host '   Fork of nvm-sh/nvm by Luis Mendez — all credits to nvm-sh creators (Tim Caswell et al.)' -ForegroundColor DarkGray
+Write-Host (nvm_ps_msg 'Installing') -ForegroundColor Green
+Write-Host (nvm_ps_msg 'ForkCredits') -ForegroundColor DarkGray
 Write-Host ''
 
 # Determine NVM_DIR (kept as ~/.nvm for WSL interop; use NVM_PS_DIR if you want isolation)
@@ -35,12 +55,12 @@ if ([string]::IsNullOrEmpty($NvmDir)) {
     }
 }
 
-Write-Host "=> NVM_DIR: $NvmDir" -ForegroundColor Cyan
+Write-Host "$(nvm_ps_msg 'NvmDir') $NvmDir" -ForegroundColor Cyan
 
-# Create NVM_DIR
+# Create NVM_DIR / Crear carpeta NVM_DIR (es-ES: carpeta, ordenador)
 if (-not (Test-Path $NvmDir)) {
     New-Item -ItemType Directory -Path $NvmDir -Force | Out-Null
-    Write-Host "=> Created directory: $NvmDir"
+    Write-Host "$(nvm_ps_msg 'CreatedDir') $NvmDir"
 }
 
 # Copy module files (nvm-ps branded)
@@ -53,8 +73,7 @@ $filesToCopy = @(
 
 # If running via irm|iex (PSScriptRoot empty or no files), try to resolve nvm-ps files from repo context or download fallback
 if (-not (Test-Path (Join-Path $scriptDir 'nvm-ps.psm1'))) {
-    # Attempt remote fallback for irm|iex without local files — inform user
-    Write-Host "=> Running in remote mode (irm|iex) — files will be fetched on first use via nvm helper" -ForegroundColor Yellow
+    Write-Host (nvm_ps_msg 'RemoteMode') -ForegroundColor Yellow
 }
 
 foreach ($file in $filesToCopy) {
@@ -62,9 +81,9 @@ foreach ($file in $filesToCopy) {
     $dst = Join-Path $NvmDir $file
     if (Test-Path $src) {
         Copy-Item $src $dst -Force
-        Write-Host "=> Installed: $file -> $dst"
+        Write-Host "$(nvm_ps_msg 'Installed') $file -> $dst"
     } else {
-        Write-Warning "Source file not found: $src (may be fetched remotely)"
+        if ($IsEsES) { Write-Warning "Fichero de origen no encontrado: $src (quizá se descargue en remoto)" } else { Write-Warning "Source file not found: $src (may be fetched remotely)" }
     }
 }
 
@@ -145,12 +164,12 @@ elseif (Test-Path "`$env:NVM_DIR\nvm.psm1") { Import-Module "`$env:NVM_DIR\nvm.p
 }
 
 Write-Host ''
-Write-Host '=> nvm-ps has been installed! (fork of nvm-sh)' -ForegroundColor Green
-Write-Host '   All credits to nvm-sh creators: Tim Caswell, Matthew Ranney, Jordan Harband (@ljharb) et al. — https://github.com/nvm-sh/nvm' -ForegroundColor DarkGray
-Write-Host '   Fork by Luis Mendez — curiosity port, Windows 11 + PowerShell 7+' -ForegroundColor DarkGray
+Write-Host (nvm_ps_msg 'InstalledDone') -ForegroundColor Green
+Write-Host (nvm_ps_msg 'AllCredits') -ForegroundColor DarkGray
+Write-Host (nvm_ps_msg 'ForkBy') -ForegroundColor DarkGray
 Write-Host ''
-Write-Host 'To start using nvm-ps, either:' -ForegroundColor White
-Write-Host '  1. Restart your PowerShell terminal, or' -ForegroundColor White
+Write-Host (nvm_ps_msg 'ToStart') -ForegroundColor White
+Write-Host (nvm_ps_msg 'Restart') -ForegroundColor White
 Write-Host "  2. Run: Import-Module `"$NvmDir\nvm-ps.psm1`" -DisableNameChecking" -ForegroundColor White
 Write-Host ''
 Write-Host 'Then try:' -ForegroundColor White
